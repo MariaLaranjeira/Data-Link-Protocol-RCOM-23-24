@@ -28,6 +28,8 @@ volatile int STOP = FALSE;
 
 int alarmEnabled = FALSE;
 int alarmCount = 0;
+char data[1000];
+int data_size = 0;
 
 int state = UA_START;
 
@@ -291,6 +293,120 @@ int llopen(int porta, int individual) {
 
 }
 
+int llread(int fd, char * buffer) {
+    	
+	unsigned char newbuf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
+	unsigned char buf[1] = {0};
+	
+	int snd_a;
+	int snd_c;
+	int temp;
+    int bcc2;
+	int loop = 1;
+
+    while (loop)
+    {
+        // Returns after 5 chars have been input
+        int bytes = read(fd, buf, 1);
+        //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+        if(bytes >0){
+			switch(state){
+				case SET_START:
+					if (buf[0] == FLAG)
+						state = SET_FLAG_RCV;
+					
+					break;
+					
+				case SET_FLAG_RCV:
+					if(buf[0] == SND_A){
+						state = SET_A_RCV;
+						snd_a = buf[0];
+					} else if (buf[0] == FLAG){
+						break;
+					} else {
+						state = SET_START;
+					}
+					break;
+						
+				case SET_A_RCV:
+
+					if(buf[0] == IN0 || buf[0] == IN1){
+						snd_c = buf[0];
+						state = SET_C_RCV;
+					} else if (buf[0] == FLAG){
+						state = SET_FLAG_RCV;
+					} else {
+						state = SET_START;
+					}			
+					break;
+							
+				case SET_C_RCV:
+					if(buf[0] == snd_a^snd_c){
+						state = SET_BCC_OK;
+					} else if (buf[0] == FLAG){
+						state = SET_FLAG_RCV;
+					} else {
+						state = SET_START;
+					}			
+					break;
+					
+				case SET_BCC_OK:
+					if(buf[0] == FLAG){
+						state = SET_STOP;
+					} else {
+						state = INFO;
+					}		
+					break;
+                    
+                case INFO:
+                    if(buf[0] == FLAG){
+                        state = SET_STOP;
+                    } else {
+                        state = INFO;
+                        data[data_size] = buf[0];
+                        data_size++;
+                    }
+                    break;
+
+                case SET_STOP:
+                    data[data_size]= "\0";
+                    bcc2 = data[0];
+                    for (int j = 1; j < sizeof(data)-2; j++){
+                        bcc2 = bcc2 ^ data[j]; 
+                    }
+                    if (bcc2 == data[sizeof(data)-2]){
+                        if (snd_c == IN0){
+                            newbuf[2] = RR1;
+                        } else if (snd_c == IN1){
+                            newbuf[2] = RR0;
+                        }
+                    } else {
+                        if (snd_c == IN0) {
+                            newbuf[2] = REJ0;
+                        } else if (snd_c == IN1){
+                            newbuf[2] = REJ1;
+                        }
+                    }
+                    buffer = data;
+                    memset(data,0,data_size+1);
+                    data_size = 0;
+                    loop = 0;
+                    break;
+
+			}
+		}
+    }
+    
+    printf("Received information.\n");
+    
+	newbuf[0]=FLAG;
+	newbuf[1]=RCV_A;
+	newbuf[3]=newbuf[1]^newbuf[2];
+	newbuf[4]=FLAG;
+	
+	int bytes = write(fd, newbuf, BUF_SIZE);
+}
+
 int llwrite(char *information) {
 
     int packets_count = sizeof(information)/(BUF_SIZE - 6);
@@ -428,7 +544,7 @@ int main(int argc, char *argv[])
     sscanf(argv[2], "%d", &individual);
 
     llopen(num, individual);
-
+    printf("%d",fd);
     llclose();
 
 }

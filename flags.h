@@ -16,7 +16,8 @@
 #define SET_A_RCV 2
 #define SET_C_RCV 3
 #define SET_BCC_OK 4
-#define SET_STOP 5
+#define INFO 5
+#define SET_STOP 6
 
 #define RR0 0x05
 #define RR1 0x85
