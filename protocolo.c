@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
     {
         printf("Incorrect program usage\n"
                "Usage: %s <SerialPortNumber> <Transmitter = 1 or Receiver = 0>\n"
-               "Example: %s 1 1 (Port number 1 and Transmitter\n",
+               "Example: %s 1 1 (Port number 1 and Transmitter)\n",
                argv[0],
                argv[0]);
         exit(1);
