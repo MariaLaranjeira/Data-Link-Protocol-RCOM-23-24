@@ -357,7 +357,6 @@ int llread(int fd, char * buffer) {
 						state = INFO;
 					}		
 					break;
-                    
                 case INFO:
                     if(buf[0] == FLAG){
                         state = SET_STOP;
@@ -544,7 +543,7 @@ int main(int argc, char *argv[])
     sscanf(argv[2], "%d", &individual);
 
     llopen(num, individual);
-    printf("%d",fd);
+
     llclose();
 
 }
