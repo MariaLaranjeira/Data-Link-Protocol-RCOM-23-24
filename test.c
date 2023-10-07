@@ -2,23 +2,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-int main() {
-    char *v[3];
-    char *serialPortName;
+int main(int argc, char *argv[]) {
+    char test[1000000];
+    int length = 0;
 
-    int i = 10;
+    for (int i = 0; i < 10; i++) {
+ 
+        strcat(test, "a");
+        length++;
 
-    int length = snprintf(NULL, 0, "%d", i);
-    char *porta = malloc(length + 1);
-    snprintf(porta, length + 1, "%d", i);
+    }
 
-    v[0] = "/dev/ttyS";
-    v[1] = porta;
-    v[2] = "\0";
+    test[length] = "\0";
 
-    serialPortName = malloc(strlen(v[0]) + strlen(v[1]) + 2);
+    printf("%s\n", test);
 
-    sprintf(serialPortName, "%s%s", v[0], v[1]);
-
-    printf("%s\n", serialPortName);
 }

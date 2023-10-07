@@ -30,3 +30,5 @@
 
 #define TRANSMITTER 1
 #define RECEIVER 0
+
+#define ESC 0x7d
