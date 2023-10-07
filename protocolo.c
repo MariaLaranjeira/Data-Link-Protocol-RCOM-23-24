@@ -28,12 +28,11 @@ volatile int STOP = FALSE;
 
 int alarmEnabled = FALSE;
 int alarmCount = 0;
-char data[1000];
-int data_size = 0;
 
 int state = UA_START;
 
-int fd;
+int i_state = 0;
+
 struct termios oldtio;
 
 void alarmHandler(int signal)
@@ -46,6 +45,7 @@ void alarmHandler(int signal)
 
 int llopen(int porta, int individual) {
     // Program usage: Uses either COM1 or COM2
+    int fd;
 
     char *v[3];
     char *serialPortName;
@@ -291,9 +291,15 @@ int llopen(int porta, int individual) {
     printf("%d bytes written\n", bytes);
     }
 
+    return fd;
 }
 
 int llread(int fd, char * buffer) {
+
+    state = SET_START;
+
+    char data[1000];
+    int data_size = 0;
     	
 	unsigned char newbuf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
 	unsigned char buf[1] = {0};
@@ -385,11 +391,9 @@ int llread(int fd, char * buffer) {
                             newbuf[2] = REJ0;
                         } else if (snd_c == IN1){
                             newbuf[2] = REJ1;
-                        }
+                        }newbuf[2] = RR1;
                     }
                     buffer = data;
-                    memset(data,0,data_size+1);
-                    data_size = 0;
                     loop = 0;
                     break;
 
@@ -403,27 +407,47 @@ int llread(int fd, char * buffer) {
 	newbuf[1]=RCV_A;
 	newbuf[3]=newbuf[1]^newbuf[2];
 	newbuf[4]=FLAG;
+    newbuf[5]="\0";
 	
-	int bytes = write(fd, newbuf, BUF_SIZE);
+	int bytes = write(fd, newbuf, 6);
+
+    return data_size;
 }
 
-int llwrite(char *information) {
+int llwrite(int fd, char *information, int length) {
 
-    int packets_count = sizeof(information)/(BUF_SIZE - 6);
+    state = UA_START;
 
-    for (int iteration = 0; iteration < packets_count; iteration++) {
-
-        // Create string to send
-    unsigned char buf[BUF_SIZE] = {0};
+    unsigned char buf[2*length];
+    int current_char = 4;
+    char bcc2 = 0x00;
 
     buf[0] = FLAG;
     buf[1] = SND_A;
-    buf[2] = SET;
-    buf[3] = buf[1]^buf[2];
-    buf[4] = FLAG;
+    if (i_state) buf[2] = IN0;
+    else         buf[2] = IN1;
 
-    // Wait until all bytes have been written to the serial port
-    sleep(1);
+    buf[3] = buf[1]^buf[2];
+
+    for (int i = 0; i < length; i++) {
+
+        bcc2 = bcc2^information[i];
+
+        if (information[i] == FLAG) {
+            buf[current_char++] = 0x7d;
+            buf[current_char++] = 0x5e;
+        } else if (information[i] == ESC) {
+            buf[current_char++] = 0x7d;
+            buf[current_char++] = 0x5d;
+        } else {
+            buf[current_char++] = information[i];
+        }
+    }
+    buf[current_char++] = bcc2;
+    buf[current_char++] = FLAG;
+    buf[current_char++] = "\0";
+
+    int bytes = write(fd, buf, current_char);
 
     unsigned char rbuf[1] = {0};
 
@@ -465,9 +489,25 @@ int llwrite(char *information) {
                 break;
 
             case UA_A_RCV:
-                if (rbuf [0] == UA) {
+                if (rbuf[0] == RR0) {
                     state = UA_C_RCV;
+                    i_state = 0;
                     rcv_c = rbuf[0];
+                } 
+                if (rbuf[0] == RR1) {
+                    state = UA_C_RCV;
+                    i_state = 1;
+                    rcv_c = rbuf[0];
+                }
+                if (rbuf[0] == REJ0) {
+                    i_state = 0;
+                    llwrite(fd, information, length);
+                    return -17;
+                }
+                if (rbuf[0] == REJ1) {
+                    i_state = 1;
+                    llwrite(fd, information, length);
+                    return -17;
                 }
                 else if (rbuf[0] == FLAG)
                     state = UA_FLAG_RCV;
@@ -504,14 +544,12 @@ int llwrite(char *information) {
 
     else 
         printf("Received UA information.\n");
-
-    }
     
     return 0;
 
 }
 
-int llclose() {
+int llclose(int fd) {
 
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
@@ -543,8 +581,8 @@ int main(int argc, char *argv[])
     sscanf(argv[1], "%d", &num);
     sscanf(argv[2], "%d", &individual);
 
-    llopen(num, individual);
+    int fd = llopen(num, individual);
     printf("%d",fd);
-    llclose();
+    llclose(fd);
 
 }
