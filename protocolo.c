@@ -500,13 +500,11 @@ int llwrite(int fd, char *information, int length) {
                 }
                 if (rbuf[0] == REJ0) {
                     i_state = 0;
-                    llwrite(fd, information, length);
-                    return -17;
+                    return llwrite(fd, information, length);
                 }
                 if (rbuf[0] == REJ1) {
                     i_state = 1;
-                    llwrite(fd, information, length);
-                    return -17;
+                    return llwrite(fd, information, length);
                 }
                 else if (rbuf[0] == FLAG)
                     state = UA_FLAG_RCV;
