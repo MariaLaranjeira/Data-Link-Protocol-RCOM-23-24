@@ -309,6 +309,7 @@ int llread(int fd, char * buffer) {
 	int temp;
     int bcc2;
 	int loop = 1;
+    short esc_found = 0;
 
     while (loop)
     {
@@ -336,6 +337,7 @@ int llread(int fd, char * buffer) {
 						
 				case SET_A_RCV:
 
+                    // Falta a condição para o caso de receber um DISC em vez de um IN0 ou IN1.
 					if(buf[0] == IN0 || buf[0] == IN1){
 						snd_c = buf[0];
 						state = SET_C_RCV;
@@ -364,22 +366,40 @@ int llread(int fd, char * buffer) {
 					}		
 					break;
                 case INFO:
-                    if(buf[0] == FLAG){
+                    if(buf[0] == FLAG) {
                         state = SET_STOP;
                     } else {
                         state = INFO;
-                        data[data_size] = buf[0];
-                        data_size++;
+                        if (buf[0] == ESC) {
+                            esc_found = 1;
+                        }
+                        else {
+                            if (esc_found && buf[0] == FLAG_ESC) {
+                                data[data_size++] = FLAG;
+                                esc_found = 0;
+                            } else if (esc_found && buf[0] == ESC_ESC){
+                                data[data_size++] = ESC;
+                                esc_found = 0;
+                            } else if (esc_found) {
+                                printf("Context byte expected after ESC byte.\n");
+                                state = SET_STOP;
+                                // Alguma condicao para nao ter de fazer o calculo do bcc. 
+                            } else {
+                                data[data_size++] = buf[0];
+                            }
+                            
+                        }
                     }
                     break;
 
                 case SET_STOP:
                     data[data_size]= "\0";
                     bcc2 = data[0];
-                    for (int j = 1; j < sizeof(data)-2; j++){
+                    // Este loop precisa de usar data_size e nao sizeof(data).
+                    for (int j = 1; j < sizeof(data)-1; j++){
                         bcc2 = bcc2 ^ data[j]; 
                     }
-                    if (bcc2 == data[sizeof(data)-2]){
+                    if (bcc2 == data[sizeof(data)-1]){
                         if (snd_c == IN0){
                             newbuf[2] = RR1;
                         } else if (snd_c == IN1){
@@ -388,9 +408,9 @@ int llread(int fd, char * buffer) {
                     } else {
                         if (snd_c == IN0) {
                             newbuf[2] = REJ0;
-                        } else if (snd_c == IN1){
+                        } else if (snd_c == IN1) {
                             newbuf[2] = REJ1;
-                        }newbuf[2] = RR1;
+                        }
                     }
                     buffer = data;
                     loop = 0;

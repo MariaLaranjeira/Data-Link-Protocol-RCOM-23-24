@@ -1,4 +1,4 @@
-#define FLAG 0x7E
+#define FLAG 0x7e
 #define SND_A 0x03
 #define RCV_A 0x01
 #define SET 0x03
@@ -32,3 +32,6 @@
 #define RECEIVER 0
 
 #define ESC 0x7d
+
+#define FLAG_ESC 0x5e
+#define ESC_ESC 0x5d
