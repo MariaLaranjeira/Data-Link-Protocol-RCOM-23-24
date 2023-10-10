@@ -115,7 +115,7 @@ int llopen(int porta, int individual) {
 
     printf("New termios structure set\n");
 
-    if (individual) {
+    if (individual == TRANSMITTER) {
 
         // Create string to send
         unsigned char buf[BUF_SIZE] = {0};
@@ -125,9 +125,9 @@ int llopen(int porta, int individual) {
         buf[2] = SET;
         buf[3] = buf[1]^buf[2];
         buf[4] = FLAG;
-
+        
         // Wait until all bytes have been written to the serial port
-        sleep(1);
+        //sleep(1);
 
         unsigned char rbuf[1] = {0};
 
@@ -212,83 +212,83 @@ int llopen(int porta, int individual) {
     }
     else {
         unsigned char newbuf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
-	unsigned char buf[1] = {0};
-	
-	int snd_a;
-	int snd_c;
-	
-    while (state != SET_STOP)
-    {
-        // Returns after 5 chars have been input
-        int bytes = read(fd, buf, 1);
-        //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
-        if(bytes >0){
-			switch(state){
-				case SET_START:
-					if (buf[0] == FLAG)
-						state = SET_FLAG_RCV;
-					
-					break;
-					
-				case SET_FLAG_RCV:
-					if(buf[0] == SND_A){
-						state = SET_A_RCV;
-						snd_a = buf[0];
-					} else if (buf[0] == FLAG){
-						break;
-					} else {
-						state = SET_START;
-					}
-					break;
-						
-				case SET_A_RCV:
-					if(buf[0] == SET){
-						snd_c = buf[0];
-						state = SET_C_RCV;
-					} else if (buf[0] == FLAG){
-						state = SET_FLAG_RCV;
-					} else {
-						state = SET_START;
-					}			
-					break;
-							
-				case SET_C_RCV:
-					if(buf[0] == snd_a^snd_c){
-						state = SET_BCC_OK;
-					} else if (buf[0] == FLAG){
-						state = SET_FLAG_RCV;
-					} else {
-						state = SET_START;
-					}			
-					break;
-					
-				case SET_BCC_OK:
-					if(buf[0] == FLAG){
-						state = SET_STOP;
-					} else {
-						state = SET_START;
-					}		
-					break;
-				
-				default:
-					
-					break;
-			}
-		}		
+        unsigned char buf[1] = {0};
+        
+        int snd_a;
+        int snd_c;
+        
+        while (state != SET_STOP)
+        {
+            // Returns after 5 chars have been input
+            int bytes = read(fd, buf, 1);
+            //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+            if(bytes >0){
+                switch(state){
+                    case SET_START:
+                        if (buf[0] == FLAG)
+                            state = SET_FLAG_RCV;
+                        
+                        break;
+                        
+                    case SET_FLAG_RCV:
+                        if(buf[0] == SND_A){
+                            state = SET_A_RCV;
+                            snd_a = buf[0];
+                        } else if (buf[0] == FLAG){
+                            break;
+                        } else {
+                            state = SET_START;
+                        }
+                        break;
+                            
+                    case SET_A_RCV:
+                        if(buf[0] == SET){
+                            snd_c = buf[0];
+                            state = SET_C_RCV;
+                        } else if (buf[0] == FLAG){
+                            state = SET_FLAG_RCV;
+                        } else {
+                            state = SET_START;
+                        }			
+                        break;
+                                
+                    case SET_C_RCV:
+                        if(buf[0] == snd_a^snd_c){
+                            state = SET_BCC_OK;
+                        } else if (buf[0] == FLAG){
+                            state = SET_FLAG_RCV;
+                        } else {
+                            state = SET_START;
+                        }			
+                        break;
+                        
+                    case SET_BCC_OK:
+                        if(buf[0] == FLAG){
+                            state = SET_STOP;
+                        } else {
+                            state = SET_START;
+                        }		
+                        break;
+                    
+                    default:
+                        
+                        break;
+                }
+            }		
 
-    }
-    
-    printf("Received SET information.\n");
-    
-	
-	newbuf[0]=FLAG;
-	newbuf[1]=RCV_A;
-	newbuf[2]=UA;
-	newbuf[3]=newbuf[1]^newbuf[2];
-	newbuf[4]=FLAG;
-	
-	int bytes = write(fd, newbuf, BUF_SIZE);
-    printf("%d bytes written\n", bytes);
+        }
+        
+        printf("Received SET information.\n");
+        
+        
+        newbuf[0]=FLAG;
+        newbuf[1]=RCV_A;
+        newbuf[2]=UA;
+        newbuf[3]=newbuf[1]^newbuf[2];
+        newbuf[4]=FLAG;
+        
+        int bytes = write(fd, newbuf, BUF_SIZE);
+        printf("%d bytes written\n", bytes);
     }
 
     return fd;
@@ -362,7 +362,7 @@ int llread(int fd, char * buffer) {
 					if(buf[0] == FLAG){
 						state = SET_STOP;
 					} else {
-						state = INFO;
+						state = INFO; // Potencialmente a perder o primeiro byte de informacao pq nao estamos a fazer nada com ele, so a mudar de estado.
 					}		
 					break;
                 case INFO:
@@ -466,9 +466,9 @@ int llwrite(int fd, char *information, int length) {
     buf[current_char++] = FLAG;
     buf[current_char++] = "\0";
 
-    int bytes = write(fd, buf, current_char);
+    
 
-    unsigned char rbuf[1] = {0};
+    unsigned char rbuf[5] = {0};
 
     int rcv_a, rcv_c;
 
@@ -481,7 +481,7 @@ int llwrite(int fd, char *information, int length) {
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
 
-            int bytes = write(fd, buf, BUF_SIZE);
+            int bytes = write(fd, buf, current_char);
             printf("%d bytes written\n", bytes);
         }
 
@@ -560,7 +560,7 @@ int llwrite(int fd, char *information, int length) {
         printf("That bitch didnt receive my set up.\n");
 
     else 
-        printf("Received UA information.\n");
+        printf("Received Confirmation information.\n");
     
     return 0;
 
@@ -599,7 +599,6 @@ int main(int argc, char *argv[])
     sscanf(argv[2], "%d", &individual);
 
     int fd = llopen(num, individual);
-    printf("%d",fd);
     llclose(fd);
 
 }
