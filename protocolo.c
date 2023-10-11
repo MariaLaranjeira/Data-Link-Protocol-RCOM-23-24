@@ -294,26 +294,27 @@ int llopen(int porta, int individual) {
     return fd;
 }
 
-int llread(int fd, char * buffer) {
+int llread(int fd, char ** buffer) {
 
     state = SET_START;
 
     char data[1000];
     int data_size = 0;
     	
-	unsigned char newbuf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
+	unsigned char newbuf[6] = {0}; // +1: Save space for the final '\0' char
 	unsigned char buf[1] = {0};
 	
 	int snd_a;
 	int snd_c;
 	int temp;
     int bcc2;
-	int loop = 1;
+	short loop = 1;
+    short miss_context_byte = 0;
     short esc_found = 0;
 
     while (loop)
     {
-        // Returns after 5 chars have been input
+
         int bytes = read(fd, buf, 1);
         //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
         if(bytes >0){
@@ -362,7 +363,13 @@ int llread(int fd, char * buffer) {
 					if(buf[0] == FLAG){
 						state = SET_STOP;
 					} else {
-						state = INFO; // Potencialmente a perder o primeiro byte de informacao pq nao estamos a fazer nada com ele, so a mudar de estado.
+						state = INFO;
+                        if (buf[0] == ESC) {
+                            esc_found = 1;
+                        }
+                        else {
+                            data[data_size++] = buf[0];
+                        }
 					}		
 					break;
                 case INFO:
@@ -383,7 +390,7 @@ int llread(int fd, char * buffer) {
                             } else if (esc_found) {
                                 printf("Context byte expected after ESC byte.\n");
                                 state = SET_STOP;
-                                // Alguma condicao para nao ter de fazer o calculo do bcc. 
+                                miss_context_byte = 1;
                             } else {
                                 data[data_size++] = buf[0];
                             }
@@ -393,13 +400,18 @@ int llread(int fd, char * buffer) {
                     break;
 
                 case SET_STOP:
+
+                    if (miss_context_byte) {
+                        loop = 0;
+                        break;
+                    }
+
                     data[data_size]= "\0";
                     bcc2 = data[0];
-                    // Este loop precisa de usar data_size e nao sizeof(data).
-                    for (int j = 1; j < sizeof(data)-1; j++){
+                    for (int j = 1; j < data_size-1; j++) {
                         bcc2 = bcc2 ^ data[j]; 
                     }
-                    if (bcc2 == data[sizeof(data)-1]){
+                    if (bcc2 == data[data_size - 1]){
                         if (snd_c == IN0){
                             newbuf[2] = RR1;
                         } else if (snd_c == IN1){
@@ -412,7 +424,7 @@ int llread(int fd, char * buffer) {
                             newbuf[2] = REJ1;
                         }
                     }
-                    buffer = data;
+                    *buffer = data;
                     loop = 0;
                     break;
 
@@ -421,6 +433,10 @@ int llread(int fd, char * buffer) {
     }
     
     printf("Received information.\n");
+
+    if (newbuf[2] == RR0 || newbuf[2] == RR1) {
+        printf("Ready to accept new info.\n");
+    }
     
 	newbuf[0]=FLAG;
 	newbuf[1]=RCV_A;
@@ -428,7 +444,8 @@ int llread(int fd, char * buffer) {
 	newbuf[4]=FLAG;
     newbuf[5]="\0";
 	
-	int bytes = write(fd, newbuf, 6);
+	int bytes = write(fd, newbuf, 5);
+    printf("Wrote %d bytes as information feedback.\n", bytes);
 
     return data_size;
 }
@@ -464,17 +481,17 @@ int llwrite(int fd, char *information, int length) {
     }
     buf[current_char++] = bcc2;
     buf[current_char++] = FLAG;
-    buf[current_char++] = "\0";
+    buf[current_char] = "\0";
 
     
 
-    unsigned char rbuf[5] = {0};
+    unsigned char rbuf[1] = {0};
 
     int rcv_a, rcv_c;
 
     (void)signal(SIGALRM, alarmHandler);
 
-    while (state != UA_STOP && alarmCount < 4) {
+    while (state != UA_STOP && alarmCount < 5) {
 
         if (alarmEnabled == FALSE)
         {
@@ -483,6 +500,7 @@ int llwrite(int fd, char *information, int length) {
 
             int bytes = write(fd, buf, current_char);
             printf("%d bytes written\n", bytes);
+            printf("State : %d\n", state);
         }
 
         int bytes = read(fd, rbuf, 1);
@@ -585,12 +603,22 @@ int main(int argc, char *argv[])
 
     if (argc < 3)
     {
-        printf("Incorrect program usage\n"
-               "Usage: %s <SerialPortNumber> <Transmitter = 1 or Receiver = 0>\n"
-               "Example: %s 1 1 (Port number 1 and Transmitter)\n",
-               argv[0],
-               argv[0]);
-        exit(1);
+        if (argv[2] == "1" && argc < 4) { 
+            printf("Incorrect program usage\n"
+                "Usage: %s <SerialPortNumber> <Transmitter = 1 or Receiver = 0> <Information>\n"
+                "Example: %s 1 1 aa (Port number 1, Transmitter and Information frame 'aa')\n",
+                argv[0],
+                argv[0]);
+            exit(1);
+        }
+        else {
+            printf("Incorrect program usage\n"
+                "Usage: %s <SerialPortNumber> <Transmitter = 1 or Receiver = 0>\n"
+                "Example: %s 1 1 (Port number 1 and Transmitter)\n",
+                argv[0],
+                argv[0]);
+            exit(1);
+        }
     }
 
     int num;
@@ -598,7 +626,18 @@ int main(int argc, char *argv[])
     sscanf(argv[1], "%d", &num);
     sscanf(argv[2], "%d", &individual);
 
+    char *message;
+
     int fd = llopen(num, individual);
+    if (sizeof(argv[3]) > 0 && individual) {
+        int bytes_written = llwrite(fd, argv[3], sizeof(argv[3]));
+        printf("Wrote %d bytes to llwrite().\n", bytes_written);
+    } else if (!individual) {
+        int bytes_read = llread(fd, &message);
+        printf("Read %d bytes to llread().\n", bytes_read);
+        printf("%s\n", message);
+    }
+
     llclose(fd);
 
 }
