@@ -337,7 +337,6 @@ int llread(int fd, char ** buffer) {
 					break;
 						
 				case SET_A_RCV:
-
                     // Falta a condição para o caso de receber um DISC em vez de um IN0 ou IN1.
 					if(buf[0] == IN0 || buf[0] == IN1){
 						snd_c = buf[0];
@@ -392,7 +391,7 @@ int llread(int fd, char ** buffer) {
                                 state = SET_STOP;
                                 miss_context_byte = 1;
                             } else {
-                                data[data_size++] = buf[0];
+                                
                             }
                             
                         }
@@ -400,7 +399,6 @@ int llread(int fd, char ** buffer) {
                     break;
 
                 case SET_STOP:
-
                     if (miss_context_byte) {
                         loop = 0;
                         break;
@@ -444,7 +442,8 @@ int llread(int fd, char ** buffer) {
 	newbuf[4]=FLAG;
     newbuf[5]="\0";
 	
-	int bytes = write(fd, newbuf, 5);
+	write(fd, newbuf, 5);
+    int bytes = write(fd, newbuf, 5);
     printf("Wrote %d bytes as information feedback.\n", bytes);
 
     return data_size;
@@ -491,16 +490,15 @@ int llwrite(int fd, char *information, int length) {
 
     (void)signal(SIGALRM, alarmHandler);
 
-    while (state != UA_STOP && alarmCount < 5) {
+    while (state != UA_STOP && alarmCount < 4) {
 
         if (alarmEnabled == FALSE)
         {
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
 
-            int bytes = write(fd, buf, current_char);
+            int bytes = write(fd, buf, current_char + 1);
             printf("%d bytes written\n", bytes);
-            printf("State : %d\n", state);
         }
 
         int bytes = read(fd, rbuf, 1);
@@ -531,16 +529,16 @@ int llwrite(int fd, char *information, int length) {
                     i_state = 0;
                     rcv_c = rbuf[0];
                 } 
-                if (rbuf[0] == RR1) {
+                else if (rbuf[0] == RR1) {
                     state = UA_C_RCV;
                     i_state = 1;
                     rcv_c = rbuf[0];
                 }
-                if (rbuf[0] == REJ0) {
+                else if (rbuf[0] == REJ0) {
                     i_state = 0;
                     return llwrite(fd, information, length);
                 }
-                if (rbuf[0] == REJ1) {
+                else if (rbuf[0] == REJ1) {
                     i_state = 1;
                     return llwrite(fd, information, length);
                 }
@@ -580,7 +578,7 @@ int llwrite(int fd, char *information, int length) {
     else 
         printf("Received Confirmation information.\n");
     
-    return 0;
+    return current_char;
 
 }
 
