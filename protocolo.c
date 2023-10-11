@@ -46,6 +46,7 @@ void alarmHandler(int signal)
 int llopen(int porta, int individual) {
     // Program usage: Uses either COM1 or COM2
     int fd;
+    alarmEnabled = FALSE;
 
     char *v[3];
     char *serialPortName;
@@ -294,11 +295,11 @@ int llopen(int porta, int individual) {
     return fd;
 }
 
-int llread(int fd, char ** buffer) {
+int llread(int fd, unsigned char ** buffer) {
 
     state = SET_START;
 
-    char data[1000];
+    char data[9000];
     int data_size = 0;
     	
 	unsigned char newbuf[6] = {0}; // +1: Save space for the final '\0' char
@@ -306,7 +307,6 @@ int llread(int fd, char ** buffer) {
 	
 	int snd_a;
 	int snd_c;
-	int temp;
     int bcc2;
 	short loop = 1;
     short miss_context_byte = 0;
@@ -317,7 +317,7 @@ int llread(int fd, char ** buffer) {
 
         int bytes = read(fd, buf, 1);
         //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
-        if(bytes >0){
+        if(bytes > 0){
 			switch(state){
 				case SET_START:
 					if (buf[0] == FLAG)
@@ -450,8 +450,8 @@ int llread(int fd, char ** buffer) {
 }
 
 int llwrite(int fd, char *information, int length) {
-
     state = UA_START;
+    alarmEnabled = FALSE;
 
     unsigned char buf[2*length];
     int current_char = 4;
@@ -480,9 +480,7 @@ int llwrite(int fd, char *information, int length) {
     }
     buf[current_char++] = bcc2;
     buf[current_char++] = FLAG;
-    buf[current_char] = "\0";
-
-    
+    buf[current_char++] = "\0";
 
     unsigned char rbuf[1] = {0};
 
@@ -497,7 +495,7 @@ int llwrite(int fd, char *information, int length) {
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
 
-            int bytes = write(fd, buf, current_char +1);
+            int bytes = write(fd, buf, current_char);
             printf("%d bytes written\n", bytes);
         }
 
@@ -621,14 +619,25 @@ int main(int argc, char *argv[])
 
     int num;
     int individual;
+    int message_length = 0;
     sscanf(argv[1], "%d", &num);
     sscanf(argv[2], "%d", &individual);
 
-    char *message;
+    
+
+    unsigned char *message;
 
     int fd = llopen(num, individual);
     if (sizeof(argv[3]) > 0 && individual) {
-        int bytes_written = llwrite(fd, argv[3], sizeof(argv[3]));
+
+        char *argv3 = argv[3];
+        while(*argv3) {
+            message_length++;
+            argv3++;
+        }
+
+        printf("%s\n", argv[3]);
+        int bytes_written = llwrite(fd, argv[3], message_length);
         printf("Wrote %d bytes to llwrite().\n", bytes_written);
     } else if (!individual) {
         int bytes_read = llread(fd, &message);
