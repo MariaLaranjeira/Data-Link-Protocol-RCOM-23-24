@@ -316,7 +316,6 @@ int llread(int fd, unsigned char ** buffer) {
     {
 
         int bytes = read(fd, buf, 1);
-        //buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
         if(bytes > 0){
 			switch(state){
 				case SET_START:
@@ -337,7 +336,6 @@ int llread(int fd, unsigned char ** buffer) {
 					break;
 						
 				case SET_A_RCV:
-                    // Falta a condição para o caso de receber um DISC em vez de um IN0 ou IN1.
 					if(buf[0] == IN0 || buf[0] == IN1){
 						snd_c = buf[0];
 						state = SET_C_RCV;
@@ -404,7 +402,6 @@ int llread(int fd, unsigned char ** buffer) {
                         break;
                     }
 
-                    data[data_size]= "\0";
                     bcc2 = data[0];
                     for (int j = 1; j < data_size-1; j++) {
                         bcc2 = bcc2 ^ data[j]; 
@@ -422,6 +419,7 @@ int llread(int fd, unsigned char ** buffer) {
                             newbuf[2] = REJ1;
                         }
                     }
+                    data[data_size - 1] = "\0";
                     *buffer = data;
                     loop = 0;
                     break;
@@ -431,10 +429,6 @@ int llread(int fd, unsigned char ** buffer) {
     }
     
     printf("Received information.\n");
-
-    if (newbuf[2] == RR0 || newbuf[2] == RR1) {
-        printf("Ready to accept new info.\n");
-    }
     
 	newbuf[0]=FLAG;
 	newbuf[1]=RCV_A;
@@ -476,6 +470,7 @@ int llwrite(int fd, char *information, int length) {
             buf[current_char++] = 0x5d;
         } else {
             buf[current_char++] = information[i];
+            
         }
     }
     buf[current_char++] = bcc2;
@@ -571,7 +566,7 @@ int llwrite(int fd, char *information, int length) {
     }
 
     if (alarmCount == 4) 
-        printf("That bitch didnt receive my set up.\n");
+        printf("Timeout.\n");
 
     else 
         printf("Received Confirmation information.\n");
@@ -630,14 +625,14 @@ int main(int argc, char *argv[])
     int fd = llopen(num, individual);
     if (sizeof(argv[3]) > 0 && individual) {
 
+        char *argv3_count = argv[3];
         char *argv3 = argv[3];
-        while(*argv3) {
+        while(*argv3_count) {
             message_length++;
-            argv3++;
+            argv3_count++;
         }
 
-        printf("%s\n", argv[3]);
-        int bytes_written = llwrite(fd, argv[3], message_length);
+        int bytes_written = llwrite(fd, argv3, message_length);
         printf("Wrote %d bytes to llwrite().\n", bytes_written);
     } else if (!individual) {
         int bytes_read = llread(fd, &message);
