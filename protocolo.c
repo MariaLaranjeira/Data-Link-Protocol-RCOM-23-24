@@ -391,7 +391,7 @@ int llread(int fd, char ** buffer) {
                                 state = SET_STOP;
                                 miss_context_byte = 1;
                             } else {
-                                
+                                data[data_size++] = buf[0];
                             }
                             
                         }
@@ -497,7 +497,7 @@ int llwrite(int fd, char *information, int length) {
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
 
-            int bytes = write(fd, buf, current_char + 1);
+            int bytes = write(fd, buf, current_char +1);
             printf("%d bytes written\n", bytes);
         }
 
