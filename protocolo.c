@@ -567,6 +567,7 @@ int llwrite(int fd, char *information, int length) {
 
     if (alarmCount == 4) 
         printf("Timeout.\n");
+        return -1;
 
     else 
         printf("Received Confirmation information.\n");
