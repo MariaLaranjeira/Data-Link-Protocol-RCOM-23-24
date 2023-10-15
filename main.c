@@ -29,12 +29,12 @@ int main(int argc, char* argv[]) {
         int num;
         short individual;
         sscanf(argv[1], "%d", &num);
-        sscanf(argv[2], "%d", &individual);
+        sscanf(argv[2], "%hd", &individual);
 
         det.entity = individual;
         det.port = num;
 
-        File* file;
+        FILE* file;
 
         if (argc == 3 || argc == 4) {
             det.filename = argv[3];
@@ -50,12 +50,15 @@ int main(int argc, char* argv[]) {
 
             det.filesize = ftell(file);
 
-            if (argc == 4)
-            det.bytes_per_packet = argv[4];
+            if (argc == 4)  {
+                int bytes_per_packet;
+                sscanf(argv[4], "%d", &bytes_per_packet);
+                det.bytes_per_packet = bytes_per_packet;
+            }
             else
             det.bytes_per_packet = 256;
 
-            close(file);
+            fclose(file);
         }
         else if (argc > 4) {
             printf("Incorrect program usage\n"

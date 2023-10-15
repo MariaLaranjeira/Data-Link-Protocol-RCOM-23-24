@@ -565,10 +565,10 @@ int llwrite(int fd, char *information, int length) {
 
     }
 
-    if (alarmCount == 4) 
+    if (alarmCount == 4) {
         printf("Timeout.\n");
         return -1;
-
+    }
     else 
         printf("Received Confirmation information.\n");
     
@@ -589,6 +589,7 @@ int llclose(int fd) {
 
 }
 
+/*
 int main(int argc, char *argv[])
 {
     // Program usage: Uses either COM1 or COM2
@@ -644,3 +645,4 @@ int main(int argc, char *argv[])
     llclose(fd);
 
 }
+*/

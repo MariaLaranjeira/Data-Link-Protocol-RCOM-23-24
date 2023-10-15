@@ -2,4 +2,4 @@
 
 Details details;
 
-int aplication(struct details* details);
+int aplication(struct Details* details);

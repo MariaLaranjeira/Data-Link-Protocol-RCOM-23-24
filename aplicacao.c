@@ -7,7 +7,7 @@
 
 
 
-typedef struct {
+typedef struct Details{
     int port;
     char* filename;
     long int filesize;
@@ -16,9 +16,9 @@ typedef struct {
 } Details;
 
 
-int aplication(struct details* details) {
+int aplication(struct Details* details) {
 
-    File* file;
+    FILE* file;
 
     int fd = llopen(details->port, details->entity);
 
@@ -30,7 +30,7 @@ int aplication(struct details* details) {
             return -1;
         }
 
-        char* start_ctrl[7];
+        char start_ctrl[5 + sizeof(details->filename) + sizeof(details->filesize)];
 
         start_ctrl[0] = C_START;
         start_ctrl[1] = FILE_SIZE;
@@ -38,7 +38,9 @@ int aplication(struct details* details) {
         start_ctrl[3] = details->filesize;
         start_ctrl[4] = FILE_NAME;
         start_ctrl[5] = sizeof(details->filename);
-        start_ctrl[6] = details->filename;
+        for (int i = 0; i < sizeof(details->filename); i++) {
+            start_ctrl[6 + i] = details->filename[i];
+        }
 
         int bytes = llwrite(fd, start_ctrl, 7);
         if (bytes == -1) {
@@ -85,14 +87,16 @@ int aplication(struct details* details) {
         printf("Data packets sent\n");
         printf("Sending end control packet\n");
 
-        char* end_ctrl[7];
+        char end_ctrl[5 + sizeof(details->filename) + sizeof(details->filesize)];
         end_ctrl[0] = C_END;
         end_ctrl[1] = FILE_SIZE;
         end_ctrl[2] = sizeof(details->filesize);
         end_ctrl[3] = details->filesize;
         end_ctrl[4] = FILE_NAME;
         end_ctrl[5] = sizeof(details->filename);
-        end_ctrl[6] = details->filename;
+        for (int i = 0; i < sizeof(details->filename); i++) {
+            end_ctrl[6 + i] = details->filename[i];
+        }
 
         bytes = llwrite(fd, end_ctrl, 7);
         if (bytes == -1) {
@@ -106,13 +110,13 @@ int aplication(struct details* details) {
         free(data);
         
 
-    } (details->entity == 0) {
+    } else if (details->entity == 0) {
         
         int state = C_START;
-        char* packet = malloc(details->bytes_per_packet + 3);
+        unsigned char* packet = malloc(details->bytes_per_packet + 3);
 
-        while(state != C_STOP) {
-            int bytes = llread(fd, packet);
+        while(state != C_END) {
+            int bytes = llread(fd, &packet);
             if (bytes == -1) {
                 printf("Error reading packet\n");
                 return -1;
@@ -128,7 +132,9 @@ int aplication(struct details* details) {
                         }
                         if (packet[4] == FILE_NAME) {
                             details->filename = malloc(packet[5]);
-                            details->filename = packet[6];
+                            for (int i = 0; i < packet[5]; i++) {
+                                details->filename[i] = packet[6 + i];
+                            }
                         }
 
                         file = fopen(details->filename, "wb");
@@ -156,12 +162,14 @@ int aplication(struct details* details) {
                         if (packet[3] != details->filesize) {
                             printf("Error: file size doesn't match\n");
                         }
-                        if (strcmp(packet[6], details->filename) != 0) {
-                            printf("Error: file name doesn't match\n");
+                        for (int i = 0; i < packet[5]; i++) {
+                            if (packet[6 + i] != details->filename[i]) {
+                                printf("Error: file name doesn't match\n");
+                            }
                         }
                         printf("File received\n");
                         printf("File name: %s\n", details->filename);
-                        printf("File size: %d\n", details->filesize);
+                        printf("File size: %ld\n", details->filesize);
                     }
                     break;   
             }
@@ -178,5 +186,5 @@ int aplication(struct details* details) {
         return -1;
     }
 
-    free(file);
+    fclose(file);
 }
