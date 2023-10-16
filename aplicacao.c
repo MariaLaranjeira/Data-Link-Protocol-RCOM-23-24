@@ -9,7 +9,7 @@
 
 typedef struct Details{
     int port;
-    char* filename;
+    unsigned char* filename;
     long int filesize;
     short entity; // 1 - transmitter, 0 - receiver
     int bytes_per_packet;
@@ -30,7 +30,7 @@ int aplication(struct Details* details) {
             return -1;
         }
 
-        char start_ctrl[5 + sizeof(details->filename) + sizeof(details->filesize)];
+        unsigned char start_ctrl[5 + sizeof(details->filename) + sizeof(details->filesize)];
 
         start_ctrl[0] = C_START;
         start_ctrl[1] = FILE_SIZE;
@@ -51,7 +51,7 @@ int aplication(struct Details* details) {
         printf("Start control packet sent\n");
         printf("Starting to send data packets\n");
 
-        char* data = malloc(details->bytes_per_packet + 3);
+        unsigned char* data = malloc(details->bytes_per_packet + 3);
 
         for (int i = 0; i < details->filesize; i += details->bytes_per_packet) {
             
@@ -87,7 +87,7 @@ int aplication(struct Details* details) {
         printf("Data packets sent\n");
         printf("Sending end control packet\n");
 
-        char end_ctrl[5 + sizeof(details->filename) + sizeof(details->filesize)];
+        unsigned char end_ctrl[5 + sizeof(details->filename) + sizeof(details->filesize)];
         end_ctrl[0] = C_END;
         end_ctrl[1] = FILE_SIZE;
         end_ctrl[2] = sizeof(details->filesize);
