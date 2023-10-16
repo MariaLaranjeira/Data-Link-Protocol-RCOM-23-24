@@ -438,6 +438,10 @@ int llread(int fd, unsigned char ** buffer) {
 	
 	write(fd, newbuf, 5);
     int bytes = write(fd, newbuf, 5);
+    if (bytes == -1) {
+        printf("Error sending end control packet\n");
+        return -1;
+    }
     printf("Wrote %d bytes as information feedback.\n", bytes);
 
     return data_size;
@@ -576,7 +580,247 @@ int llwrite(int fd, char *information, int length) {
 
 }
 
-int llclose(int fd) {
+int llclose(int fd, int individual) {
+
+    state = DISC_START;
+    
+    unsigned char disc_buf[5] = {0};
+    disc_buf[0] = FLAG;
+    disc_buf[2] = DISC;
+    disc_buf[4] = FLAG;
+
+    unsigned char rbuf[1] = {0};
+
+    if (individual) {
+
+        disc_buf[1] = SND_A;
+        disc_buf[3] = disc_buf[1]^disc_buf[2];
+
+        while (state != DISC_STOP && alarmCount < 4) {
+
+            if (alarmEnabled == FALSE)
+            {
+                alarm(3); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+
+                int bytes = write(fd, disc_buf, 5);
+                if (bytes == -1) {
+                    printf("Error sending end control packet\n");
+                    return -1;
+                }
+                printf("%d bytes written\n", bytes);
+            }
+
+            int rcv_a, rcv_c;
+
+            int bytes = read(fd, rbuf, 1);
+            if (bytes > 0) {
+                switch (state)
+                {
+                case DISC_START:
+                    if (rbuf[0] == FLAG) 
+                        state = DISC_FLAG_RCV; 
+                    break;
+
+                case DISC_FLAG_RCV:
+                    if (rbuf[0] == RCV_A) {
+                        state = DISC_A_RCV;
+                        rcv_a = rbuf[0];
+                    }
+                    else if (rbuf[0] == FLAG)
+                        break;
+                    else 
+                        state = DISC_START;
+                    break;
+
+                case DISC_A_RCV:
+                    if (rbuf[0] == DISC) {
+                        state = DISC_C_RCV;
+                        rcv_c = rbuf[0];
+                    }
+                    else if (rbuf[0] == FLAG)
+                        state = DISC_FLAG_RCV;
+                    else
+                        state = DISC_START;
+                    break;
+                
+                case DISC_C_RCV:
+                    if (rbuf[0] == rcv_a^rcv_c)
+                        state = DISC_BCC_OK;
+                    else if (rbuf[0] == FLAG)
+                        state = DISC_FLAG_RCV;
+                    else 
+                        state = DISC_START;
+                    break;
+                
+                case DISC_BCC_OK:
+                    if (rbuf[0] == FLAG)
+                        state = DISC_STOP;
+                    else 
+                        state = DISC_START;
+                    break;
+                
+                default:
+                    break;
+                }
+            }
+        }
+
+        unsigned char ua_buf[5] = {0};
+        ua_buf[0] = FLAG;
+        ua_buf[1] = SND_A;
+        ua_buf[2] = UA;
+        ua_buf[3] = ua_buf[1]^ua_buf[2];
+        ua_buf[4] = FLAG;
+
+        int bytes = write(fd, ua_buf, 5);
+        if (bytes == -1) {
+            printf("Error sending end control packet\n");
+            return -1;
+        }
+        printf("%d bytes written\n", bytes);
+        
+    } else {
+
+        disc_buf[1] = RCV_A;
+        disc_buf[3] = disc_buf[1]^disc_buf[2];
+
+        state = DISC_START;
+        
+        unsigned char rbuf[1] = {0};
+
+        int rcv_a, rcv_c;
+        
+        while (state != DISC_STOP) {
+                
+            int bytes = read(fd, rbuf, 1);
+            if (bytes > 0) {
+
+                switch (state)
+                {
+                case DISC_START:
+                    if (rbuf[0] == FLAG) 
+                        state = DISC_FLAG_RCV; 
+                    break;
+
+                case DISC_FLAG_RCV:
+                    if (rbuf[0] == SND_A) {
+                        state = DISC_A_RCV;
+                        rcv_a = rbuf[0];
+                    }
+                    else if (rbuf[0] == FLAG)
+                        break;
+                    else 
+                        state = DISC_START;
+                    break;
+
+                case DISC_A_RCV:
+                    if (rbuf[0] == DISC) {
+                        state = DISC_C_RCV;
+                        rcv_c = rbuf[0];
+                    }
+                    else if (rbuf[0] == FLAG)
+                        state = DISC_FLAG_RCV;
+                    else
+                        state = DISC_START;
+                    break;
+                
+                case DISC_C_RCV:
+                    if (rbuf[0] == rcv_a^rcv_c)
+                        state = DISC_BCC_OK;
+                    else if (rbuf[0] == FLAG)
+                        state = DISC_FLAG_RCV;
+                    else 
+                        state = DISC_START;
+                    break;
+                
+                case DISC_BCC_OK:
+                    if (rbuf[0] == FLAG)
+                        state = DISC_STOP;
+                    else 
+                        state = DISC_START;
+                    break;
+                
+                default:
+                    break;
+                }
+
+            }
+        }
+
+        state = UA_START;
+        
+        while (state != DISC_STOP && alarmCount < 4) {
+
+            if (alarmEnabled == FALSE)
+            {
+                alarm(3); // Set alarm to be triggered in 3s
+                alarmEnabled = TRUE;
+
+                int bytes = write(fd, disc_buf, 5);
+                if (bytes == -1) {
+                    printf("Error sending end control packet\n");
+                    return -1;
+                }
+                printf("%d bytes written\n", bytes);
+            }
+
+            int rcv_a, rcv_c;
+
+            int bytes = read(fd, rbuf, 1);
+            if (bytes > 0) {
+
+                switch (state)
+                {
+                case UA_START:
+                    if (rbuf[0] == FLAG) 
+                        state = UA_FLAG_RCV;
+                    break;
+
+                case UA_FLAG_RCV:
+                    if (rbuf[0] == SND_A) {
+                        state = UA_A_RCV;
+                        rcv_a = rbuf[0];
+                    }
+                    else if (rbuf[0] == FLAG)
+                        break;
+                    else 
+                        state = UA_START;
+                    break;
+
+                case UA_A_RCV:
+                    if (rbuf[0] == UA) {
+                        state = UA_C_RCV;
+                        rcv_c = rbuf[0];
+                    }
+                    else if (rbuf[0] == FLAG)
+                        state = UA_FLAG_RCV;
+                    else
+                        state = UA_START;
+                    break;
+                
+                case UA_C_RCV:
+                    if (rbuf[0] == rcv_a^rcv_c)
+                        state = UA_BCC_OK;
+                    else if (rbuf[0] == FLAG)
+                        state = UA_FLAG_RCV;
+                    else 
+                        state = UA_START;
+                    break;
+                
+                case UA_BCC_OK:
+                    if (rbuf[0] == FLAG)
+                        state = UA_STOP;
+                    else 
+                        state = UA_START;
+                    break;
+                
+                default:
+                    break;
+                }
+            }
+        }
+    }
 
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)

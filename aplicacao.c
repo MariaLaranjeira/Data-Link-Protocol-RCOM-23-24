@@ -180,7 +180,7 @@ int aplication(struct Details* details) {
 
     
 
-    int ret = llclose(fd);
+    int ret = llclose(fd, details->entity);
     if (ret == -1) {
         printf("Error closing connection\n");
         return -1;

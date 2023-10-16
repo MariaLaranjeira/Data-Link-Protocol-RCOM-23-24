@@ -19,6 +19,13 @@
 #define INFO 5
 #define SET_STOP 6
 
+#define DISC_START 0
+#define DISC_FLAG_RCV 1
+#define DISC_A_RCV 2
+#define DISC_C_RCV 3
+#define DISC_BCC_OK 4
+#define DISC_STOP 5
+
 #define RR0 0x05
 #define RR1 0x85
 #define REJ0 0x01
