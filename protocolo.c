@@ -463,11 +463,11 @@ int llwrite(int fd, char *information, int length) {
         bcc2 = bcc2^information[i];
 
         if (information[i] == FLAG) {
-            buf[current_char++] = 0x7d;
-            buf[current_char++] = 0x5e;
+            buf[current_char++] = ESC;
+            buf[current_char++] = FLAG_ESC;
         } else if (information[i] == ESC) {
-            buf[current_char++] = 0x7d;
-            buf[current_char++] = 0x5d;
+            buf[current_char++] = ESC;
+            buf[current_char++] = ESC_ESC;
         } else {
             buf[current_char++] = information[i];
             
