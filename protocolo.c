@@ -6,13 +6,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 #include <signal.h>
 
 #include "flags.h"
+#include "protocolo.h"
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -136,7 +135,7 @@ int llopen(int porta, int individual) {
 
         (void)signal(SIGALRM, alarmHandler);
 
-        while (state != UA_STOP && alarmCount < 4) {
+        while (state != UA_STOP && alarmCount < 400) {
 
             if (alarmEnabled == FALSE)
             {
@@ -181,7 +180,7 @@ int llopen(int porta, int individual) {
                     break;
                 
                 case UA_C_RCV:
-                    if (rbuf[0] == rcv_a^rcv_c)
+                    if (rbuf[0] == (rcv_a^rcv_c))
                         state = UA_BCC_OK;
                     else if (rbuf[0] == FLAG)
                         state = UA_FLAG_RCV;
@@ -254,7 +253,7 @@ int llopen(int porta, int individual) {
                         break;
                                 
                     case SET_C_RCV:
-                        if(buf[0] == snd_a^snd_c){
+                        if(buf[0] == (snd_a^snd_c)){
                             state = SET_BCC_OK;
                         } else if (buf[0] == FLAG){
                             state = SET_FLAG_RCV;
@@ -295,11 +294,11 @@ int llopen(int porta, int individual) {
     return fd;
 }
 
-int llread(int fd, unsigned char ** buffer) {
+int llread(int fd, unsigned char * buffer) {
 
     state = SET_START;
 
-    char data[9000];
+    unsigned char data[9000];
     int data_size = 0;
     	
 	unsigned char newbuf[6] = {0}; // +1: Save space for the final '\0' char
@@ -347,7 +346,7 @@ int llread(int fd, unsigned char ** buffer) {
 					break;
 							
 				case SET_C_RCV:
-					if(buf[0] == snd_a^snd_c){
+					if(buf[0] == (snd_a^snd_c)){
 						state = SET_BCC_OK;
 					} else if (buf[0] == FLAG){
 						state = SET_FLAG_RCV;
@@ -378,6 +377,7 @@ int llread(int fd, unsigned char ** buffer) {
                             esc_found = 1;
                         }
                         else {
+
                             if (esc_found && buf[0] == FLAG_ESC) {
                                 data[data_size++] = FLAG;
                                 esc_found = 0;
@@ -389,7 +389,7 @@ int llread(int fd, unsigned char ** buffer) {
                                 state = SET_STOP;
                                 miss_context_byte = 1;
                             } else {
-                                
+                                data[data_size++] = buf[0];
                             }
                             
                         }
@@ -419,11 +419,13 @@ int llread(int fd, unsigned char ** buffer) {
                             newbuf[2] = REJ1;
                         }
                     }
-                    data[data_size - 1] = "\0";
-                    *buffer = data;
+                    data[data_size - 1] = '\0';
+                    strcpy(buffer, data);
                     loop = 0;
                     break;
 
+                default:
+                    break;
 			}
 		}
     }
@@ -434,7 +436,7 @@ int llread(int fd, unsigned char ** buffer) {
 	newbuf[1]=RCV_A;
 	newbuf[3]=newbuf[1]^newbuf[2];
 	newbuf[4]=FLAG;
-    newbuf[5]="\0";
+    newbuf[5]= '\0';
 	
 	write(fd, newbuf, 5);
     int bytes = write(fd, newbuf, 5);
@@ -447,7 +449,7 @@ int llread(int fd, unsigned char ** buffer) {
     return data_size;
 }
 
-int llwrite(int fd, char *information, int length) {
+int llwrite(int fd, unsigned char *information, int length) {
     state = UA_START;
     alarmEnabled = FALSE;
 
@@ -479,7 +481,7 @@ int llwrite(int fd, char *information, int length) {
     }
     buf[current_char++] = bcc2;
     buf[current_char++] = FLAG;
-    buf[current_char++] = "\0";
+    buf[current_char++] = (unsigned char) "\0";
 
     unsigned char rbuf[1] = {0};
 
@@ -487,7 +489,7 @@ int llwrite(int fd, char *information, int length) {
 
     (void)signal(SIGALRM, alarmHandler);
 
-    while (state != UA_STOP && alarmCount < 4) {
+    while (state != UA_STOP && alarmCount < 400) {
 
         if (alarmEnabled == FALSE)
         {
@@ -546,7 +548,7 @@ int llwrite(int fd, char *information, int length) {
                 break;
             
             case UA_C_RCV:
-                if (rbuf[0] == rcv_a^rcv_c)
+                if (rbuf[0] == (rcv_a^rcv_c))
                     state = UA_BCC_OK;
                 else if (rbuf[0] == FLAG)
                     state = UA_FLAG_RCV;
@@ -596,7 +598,7 @@ int llclose(int fd, int individual) {
         disc_buf[1] = SND_A;
         disc_buf[3] = disc_buf[1]^disc_buf[2];
 
-        while (state != DISC_STOP && alarmCount < 4) {
+        while (state != DISC_STOP && alarmCount < 400) {
 
             if (alarmEnabled == FALSE)
             {
@@ -645,7 +647,7 @@ int llclose(int fd, int individual) {
                     break;
                 
                 case DISC_C_RCV:
-                    if (rbuf[0] == rcv_a^rcv_c)
+                    if (rbuf[0] == (rcv_a^rcv_c))
                         state = DISC_BCC_OK;
                     else if (rbuf[0] == FLAG)
                         state = DISC_FLAG_RCV;
@@ -726,7 +728,7 @@ int llclose(int fd, int individual) {
                     break;
                 
                 case DISC_C_RCV:
-                    if (rbuf[0] == rcv_a^rcv_c)
+                    if (+rbuf[0] == (rcv_a^rcv_c))
                         state = DISC_BCC_OK;
                     else if (rbuf[0] == FLAG)
                         state = DISC_FLAG_RCV;
@@ -750,7 +752,7 @@ int llclose(int fd, int individual) {
 
         state = UA_START;
         
-        while (state != DISC_STOP && alarmCount < 4) {
+        while (state != DISC_STOP && alarmCount < 400) {
 
             if (alarmEnabled == FALSE)
             {
@@ -800,7 +802,7 @@ int llclose(int fd, int individual) {
                     break;
                 
                 case UA_C_RCV:
-                    if (rbuf[0] == rcv_a^rcv_c)
+                    if (rbuf[0] == (rcv_a^rcv_c))
                         state = UA_BCC_OK;
                     else if (rbuf[0] == FLAG)
                         state = UA_FLAG_RCV;

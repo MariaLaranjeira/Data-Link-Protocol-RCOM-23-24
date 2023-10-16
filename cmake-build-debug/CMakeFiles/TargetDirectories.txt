@@ -1,0 +1,3 @@
+/home/pedro-linux/Desktop/RCOM/cmake-build-debug/CMakeFiles/RCOM.dir
+/home/pedro-linux/Desktop/RCOM/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/pedro-linux/Desktop/RCOM/cmake-build-debug/CMakeFiles/rebuild_cache.dir

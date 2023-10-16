@@ -3,18 +3,14 @@
 #include <string.h>
 
 int main(int argc, char *argv[]) {
-    char test[1000000];
-    int length = 0;
+    char* test = malloc(21);
 
-    for (int i = 0; i < 10; i++) {
- 
-        strcat(test, "a");
-        length++;
-
+    for (int i = 0; i < 20; i++) {
+        test[i] = 'a';
     }
 
-    test[length] = "\0";
+    test[21] = '\0';
 
-    printf("%s\n", test);
+    printf("%s", test);
 
 }
