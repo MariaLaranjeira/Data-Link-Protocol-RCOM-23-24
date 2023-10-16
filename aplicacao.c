@@ -150,8 +150,8 @@ int aplication(struct Details* details) {
                 case C_DATA:
                     if (packet[0] == C_DATA){
                         state = C_DATA;
-                        int bytes_written = fwrite(packet + 3, 1, packet[1] + packet[2] * 256, file);
-                        if (bytes_written < packet[1] + packet[2] * 256) {
+                        int bytes_written = fwrite(packet + 3, 1, packet[2] + packet[1] * 256, file);
+                        if (bytes_written < packet[2] + packet[1] * 256) {
                             printf("Error writing to file\n");
                             return -1;
                         }
