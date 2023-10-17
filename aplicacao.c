@@ -28,23 +28,30 @@ int aplication(struct Details* details) {
             return -1;
         }
 
-        unsigned char *start_ctrl = malloc(5 + strlen(details->filename) + sizeof(details->filesize));
+        unsigned char *start_ctrl = malloc(9 + strlen(details->filename));
 
         start_ctrl[0] = C_START;
         start_ctrl[1] = FILE_SIZE;
-        start_ctrl[2] = sizeof(details->filesize);
+        start_ctrl[2] = 4;
+
+        unsigned char L4 = details->filesize / 16777216;
+        unsigned char L3 = (details->filesize - L4 * 16777216) / 65536;
+        unsigned char L2 = (details->filesize - L4 * 16777216 - L3 * 65536) / 256;
+        unsigned char L1 = details->filesize - L4 * 16777216 - L3 * 65536 - L2 * 256;
         
-        for (int i = 0; i < sizeof(details->filesize); i++) {
-            start_ctrl[3 + i] = details->filesize >> (i * 8);
+
+        start_ctrl[3] = L1;
+        start_ctrl[4] = L2;
+        start_ctrl[5] = L3;
+        start_ctrl[6] = L4;
+              
+        start_ctrl[7] = FILE_NAME;
+        start_ctrl[8] = strlen(details->filename);
+        for (int i = 0; i < strlen(details->filename); i++) {
+            start_ctrl[9 + i] = details->filename[i];
         }
 
-        start_ctrl[3 + sizeof(details->filesize)] = FILE_NAME;
-        start_ctrl[4 +sizeof(details->filesize)] = strlen(details->filename);
-        for (int i = 0; i < sizeof(details->filename); i++) {
-            start_ctrl[5 + sizeof(details->filesize) + i] = details->filename[i];
-        }
-
-        int bytes = llwrite(fd, start_ctrl, 5 + strlen(details->filename) + sizeof(details->filesize));
+        int bytes = llwrite(fd, start_ctrl, 9 + strlen(details->filename));
         if (bytes == -1) {
             printf("Error sending start control packet\n");
             return -1;
@@ -93,19 +100,20 @@ int aplication(struct Details* details) {
         printf("Data packets sent\n");
         printf("Sending end control packet\n");
 
-        unsigned char end_ctrl[5 + strlen(details->filename) + sizeof(details->filesize)];
+        unsigned char end_ctrl[9 + strlen(details->filename)];
         end_ctrl[0] = C_START;
         end_ctrl[1] = FILE_SIZE;
-        end_ctrl[2] = sizeof(details->filesize);
-        
-        for (int i = 0; i < sizeof(details->filesize); i++) {
-            end_ctrl[3 + i] = details->filesize >> (i * 8);
-        }
+        end_ctrl[2] = 4;
+               
+        end_ctrl[3] = L1;
+        end_ctrl[4] = L2;
+        end_ctrl[5] = L3;
+        end_ctrl[6] = L4;
 
-        end_ctrl[3 + sizeof(details->filesize)] = FILE_NAME;
-        end_ctrl[4 +sizeof(details->filesize)] = strlen(details->filename);
-        for (int i = 0; i < sizeof(details->filename); i++) {
-            end_ctrl[5 + sizeof(details->filesize) + i] = details->filename[i];
+        end_ctrl[7] = FILE_NAME;
+        end_ctrl[8] = strlen(details->filename);
+        for (int i = 0; i < strlen(details->filename); i++) {
+            end_ctrl[9 + i] = details->filename[i];
         }
 
         bytes = llwrite(fd, end_ctrl, 5 + strlen(details->filename) + sizeof(details->filesize));
@@ -121,6 +129,8 @@ int aplication(struct Details* details) {
         
 
     } else if (details->entity == 0) {
+
+        int current_packet = 0;
         
         int state = C_START;
         unsigned char* packet = malloc(details->bytes_per_packet + 3);
@@ -132,11 +142,9 @@ int aplication(struct Details* details) {
                 return -1;
             }
 
-            printf("%d bytes read\n", bytes);
+            current_packet++;
 
-            for (int i = 0; i < bytes; i++) {
-                printf("%x ", packet[i]);
-            }
+            printf("%d bytes read and current packet is %d\n", bytes, current_packet);            
 
             switch (state) {
                 case C_START:
@@ -144,16 +152,26 @@ int aplication(struct Details* details) {
                         state = C_DATA;
                         printf("Start control packet received\n");
                         if (packet[1] == FILE_SIZE) {
-                            details->filesize = packet[3];
-                        }
-                        if (packet[4] == FILE_NAME) {
-                            details->filename = malloc(packet[5]);
-                            for (int i = 0; i < packet[5]; i++) {
-                                details->filename[i] = packet[6 + i];
+                            for (int i = 0; i < packet[2]; i++) {
+                                details->filesize += packet[3 + i] * (256 ^ i);
                             }
                         }
 
-                        file = fopen(details->filename, "wb");
+                        unsigned char temp[packet[8] + 1];
+
+                        if (packet[7] == FILE_NAME) {
+                            printf("Malucou?\n");
+                            details->filename = malloc(packet[8] + 1);
+
+                            for (int i = 0; i < packet[8]; i++) {
+                                temp[i] = packet[9 + i];
+                            }
+                            temp[packet[8]] = '\0';
+                        }
+
+                        printf("File name: %s\n", temp);
+
+                        file = fopen(temp, "wb");
 
                         if (file == NULL) {
                             printf("Error creating/opening file\n");
@@ -177,11 +195,15 @@ int aplication(struct Details* details) {
                     else if (packet[0] == C_END){
                         state = C_END;
                         printf("End control packet received\n");
-                        if (packet[3] != details->filesize) {
+                        int temp_filesize = 0;
+                        for (int i = 0; i < packet[2]; i++) {
+                            temp_filesize += packet[3 + i] * (256 ^ i);
+                        }
+                        if (temp_filesize != details->filesize) {
                             printf("Error: file size doesn't match\n");
                         }
-                        for (int i = 0; i < packet[5]; i++) {
-                            if (packet[6 + i] != details->filename[i]) {
+                        for (int i = 0; i < packet[8]; i++) {
+                            if (packet[9 + i] != details->filename[i]) {
                                 printf("Error: file name doesn't match\n");
                             }
                         }

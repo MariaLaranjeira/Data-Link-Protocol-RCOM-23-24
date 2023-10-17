@@ -135,7 +135,7 @@ int llopen(int porta, int individual) {
 
         (void)signal(SIGALRM, alarmHandler);
 
-        while (state != UA_STOP && alarmCount < 400) {
+        while (state != UA_STOP && alarmCount < 4) {
 
             if (alarmEnabled == FALSE)
             {
@@ -481,7 +481,7 @@ int llwrite(int fd, unsigned char *information, int length) {
     }
     buf[current_char++] = bcc2;
     buf[current_char++] = FLAG;
-    buf[current_char++] = (unsigned char) "\0";
+    buf[current_char++] = '\0';
 
     unsigned char rbuf[1] = {0};
 
@@ -489,7 +489,7 @@ int llwrite(int fd, unsigned char *information, int length) {
 
     (void)signal(SIGALRM, alarmHandler);
 
-    while (state != UA_STOP && alarmCount < 400) {
+    while (state != UA_STOP && alarmCount < 4) {
 
         if (alarmEnabled == FALSE)
         {
@@ -598,7 +598,7 @@ int llclose(int fd, int individual) {
         disc_buf[1] = SND_A;
         disc_buf[3] = disc_buf[1]^disc_buf[2];
 
-        while (state != DISC_STOP && alarmCount < 400) {
+        while (state != DISC_STOP && alarmCount < 4) {
 
             if (alarmEnabled == FALSE)
             {
@@ -752,7 +752,7 @@ int llclose(int fd, int individual) {
 
         state = UA_START;
         
-        while (state != DISC_STOP && alarmCount < 400) {
+        while (state != DISC_STOP && alarmCount < 4) {
 
             if (alarmEnabled == FALSE)
             {
