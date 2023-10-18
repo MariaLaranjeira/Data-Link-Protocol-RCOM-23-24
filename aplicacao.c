@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "flags.h"
 #include "protocolo.h"
 #include "aplicacao.h"
 
 int aplication(struct Details* details) {
-
-    FILE* file;
 
     printf("Attempting to open port %d\n", details->port);
 
@@ -21,6 +20,7 @@ int aplication(struct Details* details) {
     printf("Port opened\n");
 
     if (details->entity == 1) {
+        FILE* file = NULL;
         file = fopen(details->filename, "rb");
 
         if (file == NULL) {
@@ -69,19 +69,21 @@ int aplication(struct Details* details) {
             printf("Current packet: %d\n", i/details->bytes_per_packet);
             
             data[0] = C_DATA;
-            int L1_size = details->bytes_per_packet % 256;
+            int temp_size = details->bytes_per_packet;
+            int L1_size = details->bytes_per_packet / 256;
             int L2_size = details->bytes_per_packet - (L1_size * 256);
 
             if (i + details->bytes_per_packet > details->filesize) {
-                L1_size = (details->filesize - i) % 256;
+                L1_size = (details->filesize - i) / 256;
                 L2_size = (details->filesize - i) - (L1_size * 256);
+                temp_size = details->filesize - i;
             }
             
             data[1] = L1_size;
             data[2] = L2_size;
 
-            int bytes_read = fread(data + 3, 1, details->bytes_per_packet, file);
-            if (bytes_read < details->bytes_per_packet && !feof(file)) {
+            int bytes_read = fread(data + 3, temp_size, 1, file);
+            /*if (bytes_read < details->bytes_per_packet && !feof(file)) {
                 if (feof(file)) {
                     printf("End of file reached\n");
                 } else if (ferror(file)) {
@@ -89,8 +91,9 @@ int aplication(struct Details* details) {
                 }
                 return -1;
             }
+            */            
 
-            bytes = llwrite(fd, data, bytes_read);
+            bytes = llwrite(fd, data, bytes_read + 3);
             if (bytes == -1) {
                 printf("Error sending data packet\n");
                 return -1;
@@ -101,7 +104,7 @@ int aplication(struct Details* details) {
         printf("Sending end control packet\n");
 
         unsigned char end_ctrl[9 + strlen(details->filename)];
-        end_ctrl[0] = C_START;
+        end_ctrl[0] = C_END;
         end_ctrl[1] = FILE_SIZE;
         end_ctrl[2] = 4;
                
@@ -116,7 +119,7 @@ int aplication(struct Details* details) {
             end_ctrl[9 + i] = details->filename[i];
         }
 
-        bytes = llwrite(fd, end_ctrl, 5 + strlen(details->filename) + sizeof(details->filesize));
+        bytes = llwrite(fd, end_ctrl, 9 + strlen(details->filename) + sizeof(details->filesize));
         if (bytes == -1) {
             printf("Error sending end control packet\n");
             return -1;
@@ -126,10 +129,12 @@ int aplication(struct Details* details) {
         printf("File sent\n");
 
         free(data);
+        fclose(file);
         
 
     } else if (details->entity == 0) {
 
+        FILE* file = malloc(sizeof(FILE));
         int current_packet = 0;
         
         int state = C_START;
@@ -153,16 +158,15 @@ int aplication(struct Details* details) {
                         printf("Start control packet received\n");
                         if (packet[1] == FILE_SIZE) {
                             for (int i = 0; i < packet[2]; i++) {
-                                details->filesize += packet[3 + i] * (256 ^ i);
+                                details->filesize += packet[3 + i] * (pow(256, i));
                             }
                         }
+
+                        printf("File size: %ld\n", details->filesize);
 
                         unsigned char temp[packet[8] + 1];
 
                         if (packet[7] == FILE_NAME) {
-                            printf("Malucou?\n");
-                            details->filename = malloc(packet[8] + 1);
-
                             for (int i = 0; i < packet[8]; i++) {
                                 temp[i] = packet[9 + i];
                             }
@@ -181,52 +185,51 @@ int aplication(struct Details* details) {
                         printf("File created/opened\n");
                         printf("Starting to receive data packets\n");
 
-                        free(details->filename);
                     } 
                 case C_DATA:
                     if (packet[0] == C_DATA){
                         state = C_DATA;
-                        int bytes_written = fwrite(packet + 3, 1, packet[2] + packet[1] * 256, file);
+                        int bytes_written = fwrite(packet + 3, packet[2] + packet[1] * 256, 1, file);
+                        /*
                         if (bytes_written < packet[2] + packet[1] * 256) {
                             printf("Error writing to file\n");
                             return -1;
                         }
+                        */
                     }
                     else if (packet[0] == C_END){
                         state = C_END;
                         printf("End control packet received\n");
                         int temp_filesize = 0;
                         for (int i = 0; i < packet[2]; i++) {
-                            temp_filesize += packet[3 + i] * (256 ^ i);
+                            temp_filesize += packet[3 + i] * (pow(256, i));
                         }
                         if (temp_filesize != details->filesize) {
                             printf("Error: file size doesn't match\n");
                         }
-                        for (int i = 0; i < packet[8]; i++) {
+                        /*for (int i = 0; i < packet[8]; i++) {
                             if (packet[9 + i] != details->filename[i]) {
                                 printf("Error: file name doesn't match\n");
                             }
                         }
+                        */
                         printf("File received\n");
                         printf("File name: %s\n", details->filename);
-                        printf("File size: %ld\n", details->filesize);
+                        printf("File size: %d\n", temp_filesize);
                     }
                     break;   
             }
         } 
-        free(packet);   
+        fclose(file);
+        free(packet);
 
-    }
-
-    
+    } 
 
     int ret = llclose(fd, details->entity);
     if (ret == -1) {
         printf("Error closing connection\n");
         return -1;
     }
-
-    fclose(file);
 
     return 0;
 }

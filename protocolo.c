@@ -420,7 +420,11 @@ int llread(int fd, unsigned char * buffer) {
                         }
                     }
                     data[data_size - 1] = '\0';
-                    strcpy(buffer, data);
+                    
+                    for (int i = 0; i < data_size; i++) {
+                        buffer[i] = data[i];
+                    }
+                    
                     loop = 0;
                     break;
 
@@ -585,6 +589,7 @@ int llwrite(int fd, unsigned char *information, int length) {
 int llclose(int fd, int individual) {
 
     state = DISC_START;
+    alarmEnabled = FALSE;
     
     unsigned char disc_buf[5] = {0};
     disc_buf[0] = FLAG;

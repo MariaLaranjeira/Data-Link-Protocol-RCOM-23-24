@@ -47,7 +47,7 @@
 #define C_END 0x03
 #define C_DATA 0x01
 
-#define FILE_NAME 0
+#define FILE_NAME 2
 #define FILE_SIZE 1
 
 
