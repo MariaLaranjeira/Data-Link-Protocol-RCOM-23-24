@@ -93,7 +93,7 @@ int aplication(struct Details* details) {
             }
             */            
 
-            bytes = llwrite(fd, data, bytes_read + 3);
+            bytes = llwrite(fd, data, temp_size + 3);
             if (bytes == -1) {
                 printf("Error sending data packet\n");
                 return -1;
