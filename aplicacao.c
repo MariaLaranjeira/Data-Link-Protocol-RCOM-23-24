@@ -13,7 +13,7 @@ int aplication(struct Details* details) {
 
     int fd = llopen(details->port, details->entity);
     if (fd == -1) {
-        printf("Error opening port\n");
+        perror("Error opening port\n");
         return -1;
     }
 
@@ -24,7 +24,7 @@ int aplication(struct Details* details) {
         file = fopen(details->filename, "rb");
 
         if (file == NULL) {
-            printf("Error opening file\n");
+            perror("Error opening file\n");
             return -1;
         }
 
@@ -53,7 +53,7 @@ int aplication(struct Details* details) {
 
         int bytes = llwrite(fd, start_ctrl, 9 + strlen(details->filename));
         if (bytes == -1) {
-            printf("Error sending start control packet\n");
+            perror("Error sending start control packet\n");
             return -1;
         }
 
@@ -92,7 +92,7 @@ int aplication(struct Details* details) {
 
             bytes = llwrite(fd, data, temp_size + 3);
             if (bytes == -1) {
-                printf("Error sending data packet\n");
+                perror("Error sending data packet\n");
                 return -1;
             }
         }
@@ -118,7 +118,7 @@ int aplication(struct Details* details) {
 
         bytes = llwrite(fd, end_ctrl, 9 + strlen(details->filename) + sizeof(details->filesize));
         if (bytes == -1) {
-            printf("Error sending end control packet\n");
+            perror("Error sending end control packet\n");
             return -1;
         }
 
@@ -139,7 +139,7 @@ int aplication(struct Details* details) {
         while(state != C_END) {
             int bytes = llread(fd, packet);
             if (bytes == -1) {
-                printf("Error reading packet\n");
+                perror("Error reading packet\n");
                 return -1;
             }       
 
@@ -170,7 +170,7 @@ int aplication(struct Details* details) {
                         file = fopen(temp, "wb");
 
                         if (file == NULL) {
-                            printf("Error creating/opening file\n");
+                            perror("Error creating/opening file\n");
                             return -1;
                         }
 
@@ -199,7 +199,7 @@ int aplication(struct Details* details) {
                             temp_filesize += packet[3 + i] * (pow(256, i));
                         }
                         if (temp_filesize != details->filesize) {
-                            printf("Error: file size doesn't match\n");
+                            perror("Error: file size doesn't match\n");
                         }
                         /*for (int i = 0; i < packet[8]; i++) {
                             if (packet[9 + i] != details->filename[i]) {
@@ -221,7 +221,7 @@ int aplication(struct Details* details) {
 
     int ret = llclose(fd, details->entity);
     if (ret == -1) {
-        printf("Error closing connection\n");
+        perror("Error closing connection\n");
         return -1;
     }
 

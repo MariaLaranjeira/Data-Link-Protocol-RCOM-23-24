@@ -203,7 +203,7 @@ int llopen(int porta, int individual) {
         }
 
         if (alarmCount == 4) 
-            printf("Timeout.\n");
+            perror("Timeout.\n");
 
         else 
             printf("Received UA information.\n");
@@ -288,7 +288,7 @@ int llopen(int porta, int individual) {
         
         int bytes = write(fd, newbuf, BUF_SIZE);
         if (bytes == -1) {
-            printf("Error sending end control packet\n");
+            perror("Error sending end control packet\n");
             return -1;
         }
     }
@@ -379,21 +379,18 @@ int llread(int fd, unsigned char * buffer) {
                             esc_found = 1;
                         }
                         else {
-
-                            if (esc_found && buf[0] == FLAG_ESC) {
+                            if (!esc_found) data[data_size++] = buf[0];
+                            else if (esc_found && buf[0] == FLAG_ESC) {
                                 data[data_size++] = FLAG;
                                 esc_found = 0;
                             } else if (esc_found && buf[0] == ESC_ESC){
                                 data[data_size++] = ESC;
                                 esc_found = 0;
-                            } else if (esc_found) {
-                                printf("Context byte expected after ESC byte.\n");
-                                state = SET_STOP;
-                                miss_context_byte = 1;
                             } else {
-                                data[data_size++] = buf[0];
+                                perror("Context byte expected after ESC byte.\n");
+                                state = SET_STOP;
+                                miss_context_byte = 1;                            
                             }
-                            
                         }
                     }
                     break;
@@ -423,10 +420,7 @@ int llread(int fd, unsigned char * buffer) {
                     }
                     data[data_size - 1] = '\0';
                     
-                    for (int i = 0; i < data_size; i++) {
-                        buffer[i] = data[i];
-                    }
-                    
+                    memcpy(buffer, data, data_size);                    
                     loop = 0;
                     break;
 
@@ -445,7 +439,7 @@ int llread(int fd, unsigned char * buffer) {
 	write(fd, newbuf, 5);
     int bytes = write(fd, newbuf, 5);
     if (bytes == -1) {
-        printf("Error sending end control packet\n");
+        perror("Error sending end control packet\n");
         return -1;
     }
 
@@ -501,7 +495,7 @@ int llwrite(int fd, unsigned char *information, int length) {
 
             int bytes = write(fd, buf, current_char + 1);
             if (bytes == -1) {
-                printf("Error sending end control packet\n");
+                perror("Error sending end control packet\n");
                 return -1;
             }
         }
@@ -578,7 +572,7 @@ int llwrite(int fd, unsigned char *information, int length) {
     }
 
     if (alarmCount == 4) {
-        printf("Timeout.\n");
+        perror("Timeout.\n");        
         return -1;
     }
     
@@ -612,7 +606,7 @@ int llclose(int fd, int individual) {
 
                 int bytes = write(fd, disc_buf, 5);
                 if (bytes == -1) {
-                    printf("Error sending end control packet\n");
+                    perror("Error sending end control packet\n");
                     return -1;
                 }
             }
@@ -681,7 +675,7 @@ int llclose(int fd, int individual) {
 
         int bytes = write(fd, ua_buf, 5);
         if (bytes == -1) {
-            printf("Error sending end control packet\n");
+            perror("Error sending end control packet\n");
             return -1;
         }
         
@@ -764,7 +758,7 @@ int llclose(int fd, int individual) {
 
                 int bytes = write(fd, disc_buf, 5);
                 if (bytes == -1) {
-                    printf("Error sending end control packet\n");
+                    perror("Error sending end control packet\n");
                     return -1;
                 }
             }

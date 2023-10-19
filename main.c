@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
         file = fopen(det.filename, "r");
 
         if (file == NULL) {
-            printf("Error opening file to verify its size!\n");
+            perror("Error opening file to verify its size!\n");
             exit(1);
         }
 
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
     printf("Opening the aplication layer.\n");
     int result = aplication(&det);
     if (result != 0) {
-        printf("Error in aplication\n");
+        perror("Error in aplication\n");
         exit(1);
     }
 
