@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
             det.bytes_per_packet = bytes_per_packet;
         }
         else
-        det.bytes_per_packet = 256;
+        det.bytes_per_packet = 10240;
 
         fclose(file);
     }

@@ -143,7 +143,6 @@ int llopen(int porta, int individual) {
                 alarmEnabled = TRUE;
 
                 int bytes = write(fd, buf, BUF_SIZE);
-                printf("%d bytes written\n", bytes);
             }
 
             int bytes = read(fd, rbuf, 1);
@@ -204,7 +203,7 @@ int llopen(int porta, int individual) {
         }
 
         if (alarmCount == 4) 
-            printf("That bitch didnt receive my set up.\n");
+            printf("Timeout.\n");
 
         else 
             printf("Received UA information.\n");
@@ -288,7 +287,10 @@ int llopen(int porta, int individual) {
         newbuf[4]=FLAG;
         
         int bytes = write(fd, newbuf, BUF_SIZE);
-        printf("%d bytes written\n", bytes);
+        if (bytes == -1) {
+            printf("Error sending end control packet\n");
+            return -1;
+        }
     }
 
     return fd;
@@ -298,7 +300,7 @@ int llread(int fd, unsigned char * buffer) {
 
     state = SET_START;
 
-    unsigned char data[9000];
+    unsigned char data[12000];
     int data_size = 0;
     	
 	unsigned char newbuf[6] = {0}; // +1: Save space for the final '\0' char
@@ -434,8 +436,6 @@ int llread(int fd, unsigned char * buffer) {
 		}
     }
     
-    printf("Received information.\n");
-    
 	newbuf[0]=FLAG;
 	newbuf[1]=RCV_A;
 	newbuf[3]=newbuf[1]^newbuf[2];
@@ -448,7 +448,6 @@ int llread(int fd, unsigned char * buffer) {
         printf("Error sending end control packet\n");
         return -1;
     }
-    printf("Wrote %d bytes as information feedback.\n", bytes);
 
     return data_size;
 }
@@ -501,7 +500,10 @@ int llwrite(int fd, unsigned char *information, int length) {
             alarmEnabled = TRUE;
 
             int bytes = write(fd, buf, current_char + 1);
-            printf("%d bytes written\n", bytes);
+            if (bytes == -1) {
+                printf("Error sending end control packet\n");
+                return -1;
+            }
         }
 
         int bytes = read(fd, rbuf, 1);
@@ -579,8 +581,6 @@ int llwrite(int fd, unsigned char *information, int length) {
         printf("Timeout.\n");
         return -1;
     }
-    else 
-        printf("Received Confirmation information.\n");
     
     return current_char;
 
@@ -615,7 +615,6 @@ int llclose(int fd, int individual) {
                     printf("Error sending end control packet\n");
                     return -1;
                 }
-                printf("%d bytes written\n", bytes);
             }
 
             int rcv_a, rcv_c;
@@ -685,7 +684,6 @@ int llclose(int fd, int individual) {
             printf("Error sending end control packet\n");
             return -1;
         }
-        printf("%d bytes written\n", bytes);
         
     } else {
 
@@ -769,7 +767,6 @@ int llclose(int fd, int individual) {
                     printf("Error sending end control packet\n");
                     return -1;
                 }
-                printf("%d bytes written\n", bytes);
             }
 
             int rcv_a, rcv_c;

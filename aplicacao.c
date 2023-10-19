@@ -64,10 +64,7 @@ int aplication(struct Details* details) {
 
         printf("Sending %ld packets\n", details->filesize / details->bytes_per_packet + 1);
 
-        for (int i = 0; i < details->filesize; i += details->bytes_per_packet) {
-
-            printf("Current packet: %d\n", i/details->bytes_per_packet);
-            
+        for (int i = 0; i < details->filesize; i += details->bytes_per_packet) {            
             data[0] = C_DATA;
             int temp_size = details->bytes_per_packet;
             int L1_size = details->bytes_per_packet / 256;
@@ -134,22 +131,17 @@ int aplication(struct Details* details) {
 
     } else if (details->entity == 0) {
 
-        FILE* file = malloc(sizeof(FILE));
-        int current_packet = 0;
+        FILE* file;
         
         int state = C_START;
-        unsigned char* packet = malloc(details->bytes_per_packet + 3);
+        unsigned char* packet = malloc(256);
 
         while(state != C_END) {
             int bytes = llread(fd, packet);
             if (bytes == -1) {
                 printf("Error reading packet\n");
                 return -1;
-            }
-
-            current_packet++;
-
-            printf("%d bytes read and current packet is %d\n", bytes, current_packet);            
+            }       
 
             switch (state) {
                 case C_START:
@@ -181,6 +173,8 @@ int aplication(struct Details* details) {
                             printf("Error creating/opening file\n");
                             return -1;
                         }
+
+                        packet = malloc(details->filesize + 3);
 
                         printf("File created/opened\n");
                         printf("Starting to receive data packets\n");
