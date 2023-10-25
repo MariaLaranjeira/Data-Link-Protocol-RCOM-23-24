@@ -61,6 +61,7 @@ int aplication(struct Details* details) {
         printf("Starting to send data packets\n");
 
         unsigned char* data = malloc(details->bytes_per_packet + 3);
+        memset(data, 0, details->bytes_per_packet + 3);
 
         printf("Sending %ld packets\n", details->filesize / details->bytes_per_packet + 1);
 
@@ -95,6 +96,7 @@ int aplication(struct Details* details) {
                 perror("Error sending data packet\n");
                 return -1;
             }
+            memset(data, 0, details->bytes_per_packet + 3);
         }
 
         printf("Data packets sent\n");
@@ -182,7 +184,6 @@ int aplication(struct Details* details) {
                     } 
                 case C_DATA:
                     if (packet[0] == C_DATA){
-                        state = C_DATA;
                         int bytes_written = fwrite(packet + 3, packet[2] + packet[1] * 256, 1, file);
                         /*
                         if (bytes_written < packet[2] + packet[1] * 256) {

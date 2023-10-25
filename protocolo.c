@@ -38,8 +38,6 @@ void alarmHandler(int signal)
 {
     alarmEnabled = FALSE;
     alarmCount++;
-
-    printf("Alarm #%d\n", alarmCount);
 }
 
 int llopen(int porta, int individual) {
@@ -143,6 +141,10 @@ int llopen(int porta, int individual) {
                 alarmEnabled = TRUE;
 
                 int bytes = write(fd, buf, BUF_SIZE);
+                if (bytes == -1) {
+                    perror("Error sending SET control packet\n");
+                    return -1;
+                }
             }
 
             int bytes = read(fd, rbuf, 1);
@@ -202,9 +204,10 @@ int llopen(int porta, int individual) {
 
         }
 
-        if (alarmCount == 4) 
+        if (alarmCount == 4) {
             perror("Timeout.\n");
-
+            return -1;
+        }
         else 
             printf("Received UA information.\n");
 
@@ -288,7 +291,7 @@ int llopen(int porta, int individual) {
         
         int bytes = write(fd, newbuf, BUF_SIZE);
         if (bytes == -1) {
-            perror("Error sending end control packet\n");
+            perror("Error UA control packet\n");
             return -1;
         }
     }
@@ -300,7 +303,7 @@ int llread(int fd, unsigned char * buffer) {
 
     state = SET_START;
 
-    unsigned char data[12000];
+    //unsigned char* data = malloc(65535);
     int data_size = 0;
     	
 	unsigned char newbuf[6] = {0}; // +1: Save space for the final '\0' char
@@ -366,7 +369,7 @@ int llread(int fd, unsigned char * buffer) {
                             esc_found = 1;
                         }
                         else {
-                            data[data_size++] = buf[0];
+                            buffer[data_size++] = buf[0];
                         }
 					}		
 					break;
@@ -379,12 +382,12 @@ int llread(int fd, unsigned char * buffer) {
                             esc_found = 1;
                         }
                         else {
-                            if (!esc_found) data[data_size++] = buf[0];
+                            if (!esc_found) buffer[data_size++] = buf[0];
                             else if (esc_found && buf[0] == FLAG_ESC) {
-                                data[data_size++] = FLAG;
+                                buffer[data_size++] = FLAG;
                                 esc_found = 0;
                             } else if (esc_found && buf[0] == ESC_ESC){
-                                data[data_size++] = ESC;
+                                buffer[data_size++] = ESC;
                                 esc_found = 0;
                             } else {
                                 perror("Context byte expected after ESC byte.\n");
@@ -397,15 +400,20 @@ int llread(int fd, unsigned char * buffer) {
 
                 case SET_STOP:
                     if (miss_context_byte) {
+                         if (snd_c == IN0) {
+                            newbuf[2] = REJ0;
+                        } else if (snd_c == IN1) {
+                            newbuf[2] = REJ1;
+                        }
                         loop = 0;
                         break;
                     }
 
-                    bcc2 = data[0];
+                    bcc2 = buffer[0];
                     for (int j = 1; j < data_size-1; j++) {
-                        bcc2 = bcc2 ^ data[j]; 
+                        bcc2 = bcc2 ^ buffer[j]; 
                     }
-                    if (bcc2 == data[data_size - 1]){
+                    if (bcc2 == buffer[data_size - 1]){
                         if (snd_c == IN0){
                             newbuf[2] = RR1;
                         } else if (snd_c == IN1){
@@ -418,9 +426,9 @@ int llread(int fd, unsigned char * buffer) {
                             newbuf[2] = REJ1;
                         }
                     }
-                    data[data_size - 1] = '\0';
+                    buffer[data_size - 1] = '\0';
                     
-                    memcpy(buffer, data, data_size);                    
+                    //memcpy(buffer, data, data_size);                    
                     loop = 0;
                     break;
 
@@ -429,6 +437,8 @@ int llread(int fd, unsigned char * buffer) {
 			}
 		}
     }
+
+    //free(data);
     
 	newbuf[0]=FLAG;
 	newbuf[1]=RCV_A;
@@ -439,7 +449,7 @@ int llread(int fd, unsigned char * buffer) {
 	write(fd, newbuf, 5);
     int bytes = write(fd, newbuf, 5);
     if (bytes == -1) {
-        perror("Error sending end control packet\n");
+        perror("Error sending data packet\n");
         return -1;
     }
 
@@ -493,11 +503,12 @@ int llwrite(int fd, unsigned char *information, int length) {
             alarm(3); // Set alarm to be triggered in 3s
             alarmEnabled = TRUE;
 
-            int bytes = write(fd, buf, current_char + 1);
+            int bytes = write(fd, buf, current_char);
             if (bytes == -1) {
-                perror("Error sending end control packet\n");
+                perror("Error sending packet\n");
                 return -1;
             }
+            continue;
         }
 
         int bytes = read(fd, rbuf, 1);
@@ -534,11 +545,9 @@ int llwrite(int fd, unsigned char *information, int length) {
                     rcv_c = rbuf[0];
                 }
                 else if (rbuf[0] == REJ0) {
-                    i_state = 0;
                     return llwrite(fd, information, length);
                 }
                 else if (rbuf[0] == REJ1) {
-                    i_state = 1;
                     return llwrite(fd, information, length);
                 }
                 else if (rbuf[0] == FLAG)

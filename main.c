@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
 
     if (argc < 3) {
         printf("Incorrect program usage\n"
-            "Usage: %s <SerialPortNumber> <Transmitter = 1 or Receiver = 0> <#Optional: Filename> <#Optional: Bytes per Packet>\n"
+            "Usage: %s <SerialPortNumber> <Transmitter = 1 or Receiver = 0> <#Optional: Filename> <#Optional: Bytes per Packet, MAX:65535>\n"
             "Example: %s 1 1 a.txt 256 (Port number 1, Transmitter, File Name 'a.txt' and 256 bytes per packet sent)\n",
             argv[0],
             argv[0]);
@@ -54,10 +54,15 @@ int main(int argc, char* argv[]) {
         if (argc == 5)  {
             int bytes_per_packet;
             sscanf(argv[4], "%d", &bytes_per_packet);
+            if (bytes_per_packet > 65535) {
+                bytes_per_packet = 65535;
+                printf("Bytes per packet can't be over 65535\n");
+            }
+            
             det.bytes_per_packet = bytes_per_packet;
         }
         else
-        det.bytes_per_packet = 10240;
+        det.bytes_per_packet = 1000;
 
         fclose(file);
     }
