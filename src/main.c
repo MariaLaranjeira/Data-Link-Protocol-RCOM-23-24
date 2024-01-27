@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aplicacao.h"
+#include "../headers/aplicacao.h"
 
 Details det;
 

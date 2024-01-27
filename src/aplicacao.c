@@ -3,9 +3,9 @@
 #include <string.h>
 #include <math.h>
 
-#include "flags.h"
-#include "protocolo.h"
-#include "aplicacao.h"
+#include "../headers/flags.h"
+#include "../headers/protocolo.h"
+#include "../headers/aplicacao.h"
 
 int aplication(struct Details* details) {
 

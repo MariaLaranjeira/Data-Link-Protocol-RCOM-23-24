@@ -10,8 +10,8 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include "flags.h"
-#include "protocolo.h"
+#include "../headers/flags.h"
+#include "../headers/protocolo.h"
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
